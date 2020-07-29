@@ -316,6 +316,52 @@ def add_mult_positions(companions, ss_pos, logAge):
     
     return companions_temp
 
+def distance_to_center_of_mass(ss_pos, companions_pos):
+    """
+    Adds extra column to star system and companions table with distance to the center of mass.
+    Assumes hierarchical triples (two closest stars orbit their center of mass and triple orbits them) and no quads+.
+    
+    ss_pos: astropy table
+        Star system table with positions added with add_positions()
+    
+    companion_pos: astropy table
+        Companion table with positions added with add_mult_positions()
+    """
+    
+    ss_pos_temp = deepcopy(ss_pos)
+    companions_pos_temp = deepcopy(companions_pos)
+    
+    ss_pos_temp.add_column( Column(np.zeros(len(ss_pos_temp), dtype=float), name='r') )
+    companions_pos_temp.add_column( Column(np.zeros(len(companions_pos_temp), dtype=float), name='r') )
+    companions_pos_temp.sort(['system_idx','log_a'])
+    
+    for i in range(len(ss_pos_temp)):
+        if ss_pos_temp[i]['isMultiple'] == True:
+            companion_indicies = np.where(companions_pos_temp['system_idx'] == i)[0]
+            
+            primary_mass = ss_pos_temp[i]['mass']
+            companion_masses = companions_pos_temp[companion_indicies]['mass']
+            companion_a = 10**companions_pos_temp[companion_indicies]['log_a']
+            
+            # Distance to barycenter/center of mass
+            r_1 = companion_a[0]*companion_masses[0]/(primary_mass + companion_masses[0])
+            r_2 = companion_a[0] - r_1
+                                    
+            ss_pos_temp[i]['r'] = r_1
+            companions_pos_temp[companion_indicies[0]]['r'] = r_2
+            
+            # Assumes hierarchical triples 
+            if len(companion_indicies) == 2:
+                center_mass = primary_mass + companion_masses[0]
+                r_1_out = companion_a[1]*companion_masses[1]/(center_mass + companion_masses[1])
+                r_2_out = companion_a[1] - r_1_out
+                
+                companions_pos_temp[companion_indicies[1]]['r'] = r_2_out
+                
+    return ss_pos_temp, companions_pos_temp
+                
+            
+
 def plot_projected_cluster(ss_pos, companions_pos):
     """
     Plots projected cluster with lines between companions and primary stars
