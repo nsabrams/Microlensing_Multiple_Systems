@@ -364,7 +364,10 @@ def distance_to_center_of_mass(ss_pos, companions_pos):
     companions_pos_temp = deepcopy(companions_pos)
     
     ss_pos_temp.add_column( Column(np.zeros(len(ss_pos_temp), dtype=float), name='com_x') )
+    ss_pos_temp.add_column( Column(np.zeros(len(ss_pos_temp), dtype=float), name='com_y') )
+    companions_pos_temp.add_column( Column(np.zeros(len(companions_pos_temp), dtype=float), name='com_x') )
     companions_pos_temp.add_column( Column(np.zeros(len(companions_pos_temp), dtype=float), name='com_y') )
+    
     companions_pos_temp.sort(['system_idx','log_a'])
     
     for i in range(len(ss_pos_temp)):
