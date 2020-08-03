@@ -246,11 +246,18 @@ def a_to_P(mass, a):
     """
     Goes from semimajor axis in AU to period in years
     
+    Parameters
+    ---------- 
     mass: float or array-like
-        Primary object mass in Msun
+        Primary object mass in Msun.
     
     a: float or array-like
-        Semimajor axis in AU
+        Semimajor axis in AU.
+        
+    Returns
+    ---------- 
+    period: float or array-like
+        Orbital period in years.
     """
     
     G_units = c.G.to("AU3/(M_sun*year2)").value
@@ -261,8 +268,15 @@ def add_positions(ss):
     """
     Adds x and y positions randomly in a box of length and width 40000 AU for each system.
     
+    Parameters
+    ----------   
     ss: astropy table
         Star system table without positions
+        
+    Returns
+    ----------
+    ss_temp: astropy table
+        Star system table with positions added
     """
     ss_temp = deepcopy(ss)
     
@@ -281,6 +295,8 @@ def add_mult_positions(companions, ss_pos, logAge):
     Adds x and y positions of multiple companions by transforming keplerian parameters to xyz in AU
     using code origially from gcworks and random initial times. Then adding them to the random posiiton of the primary object.
     
+    Parameters
+    ----------    
     ss_pos: astropy table
         Star system table with positions added with add_positions()
     
@@ -289,6 +305,12 @@ def add_mult_positions(companions, ss_pos, logAge):
     
     logAge: float or int
         Log of age of cluster with age in years
+        
+    Returns
+    ----------
+    companion_temp: astropy table
+        Companion table with positions added
+        
     """
     companions_temp = deepcopy(companions)
     
@@ -318,21 +340,31 @@ def add_mult_positions(companions, ss_pos, logAge):
 
 def distance_to_center_of_mass(ss_pos, companions_pos):
     """
-    Adds extra column to star system and companions table with distance to the center of mass.
+    Adds extra column to star system and companions table with x and y distance to the center of mass in AU.
     Assumes hierarchical triples (two closest stars orbit their center of mass and triple orbits them) and no quads+.
     
+    Parameters
+    ----------    
     ss_pos: astropy table
         Star system table with positions added with add_positions()
     
     companion_pos: astropy table
         Companion table with positions added with add_mult_positions()
+        
+    Results
+    ----------  
+    ss_pos_temp: astropy table
+        Star system table with distance to center of mass in AU added
+    
+    companion_pos_temp: astropy table
+        Companion table with distance to center of mass in AU added
     """
     
     ss_pos_temp = deepcopy(ss_pos)
     companions_pos_temp = deepcopy(companions_pos)
     
-    ss_pos_temp.add_column( Column(np.zeros(len(ss_pos_temp), dtype=float), name='r') )
-    companions_pos_temp.add_column( Column(np.zeros(len(companions_pos_temp), dtype=float), name='r') )
+    ss_pos_temp.add_column( Column(np.zeros(len(ss_pos_temp), dtype=float), name='com_x') )
+    companions_pos_temp.add_column( Column(np.zeros(len(companions_pos_temp), dtype=float), name='com_y') )
     companions_pos_temp.sort(['system_idx','log_a'])
     
     for i in range(len(ss_pos_temp)):
@@ -341,22 +373,28 @@ def distance_to_center_of_mass(ss_pos, companions_pos):
             
             primary_mass = ss_pos_temp[i]['mass']
             companion_masses = companions_pos_temp[companion_indicies]['mass']
-            companion_a = 10**companions_pos_temp[companion_indicies]['log_a']
             
-            # Distance to barycenter/center of mass
-            r_1 = companion_a[0]*companion_masses[0]/(primary_mass + companion_masses[0])
-            r_2 = companion_a[0] - r_1
-                                    
-            ss_pos_temp[i]['r'] = r_1
-            companions_pos_temp[companion_indicies[0]]['r'] = r_2
+            primary_x = ss_pos_temp[i]['x']
+            companion_x = companions_pos_temp[companion_indicies]['x']
+            com_x = (primary_mass*primary_x + companion_masses[0]*companion_x[0])/(primary_mass + companion_masses[0])
+            
+            primary_y = ss_pos_temp[i]['y']
+            companion_y = companions_pos_temp[companion_indicies]['y']
+            com_y = (primary_mass*primary_y + companion_masses[0]*companion_y[0])/(primary_mass + companion_masses[0])
+            
+            ss_pos_temp[i]['com_x'] = com_x - primary_x
+            companions_pos_temp[companion_indicies[0]]['com_x'] = com_x - companion_x[0]
+            ss_pos_temp[i]['com_y'] = com_y - primary_y
+            companions_pos_temp[companion_indicies[0]]['com_y'] = com_y - companion_y[0]
             
             # Assumes hierarchical triples 
             if len(companion_indicies) == 2:
                 center_mass = primary_mass + companion_masses[0]
-                r_1_out = companion_a[1]*companion_masses[1]/(center_mass + companion_masses[1])
-                r_2_out = companion_a[1] - r_1_out
+                com_x_out = (center_mass*com_x + companion_masses[1]*companion_x[1])/(center_mass + companion_masses[1])
+                com_y_out = (center_mass*com_y + companion_masses[1]*companion_y[1])/(center_mass + companion_masses[1])
                 
-                companions_pos_temp[companion_indicies[1]]['r'] = r_2_out
+                companions_pos_temp[companion_indicies[1]]['com_x'] = com_x_out - companion_x[1]
+                companions_pos_temp[companion_indicies[1]]['com_y'] = com_y_out - companion_y[1]
                 
     return ss_pos_temp, companions_pos_temp
                 
@@ -366,6 +404,8 @@ def plot_projected_cluster(ss_pos, companions_pos):
     """
     Plots projected cluster with lines between companions and primary stars
     
+    Parameters
+    ----------   
     ss_pos: astropy table
         Star system table with positions added with add_positions()
     
@@ -390,6 +430,8 @@ def plot_companion_orbit(ss, companions_pos, logAge, t0 = None, system = None):
     """
     Plots the orbit of one system assuming the primary object is at (0,0). By default random companion and initial time.
     
+    Parameters
+    ----------       
     ss: astropy table
         Star system table (does not matter if it has positions or not)
     
@@ -398,12 +440,16 @@ def plot_companion_orbit(ss, companions_pos, logAge, t0 = None, system = None):
     
     logAge: float or int
         Log of age of cluster with age in years
-    
+        
+    Optional Parameters
+    ----------       
     t0: float or int
-        Initial time of creation of the system in years (by default random)
+        Initial time of creation of the system in years.
+        Default random.
     
     system: int
-        Index of desired companion in companion_pos table (by default random)
+        Index of desired companion in companion_pos table.
+        Default random.
     """
     
     if system == None:
