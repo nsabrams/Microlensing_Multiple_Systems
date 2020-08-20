@@ -12,7 +12,7 @@ class Orbit(object):
     """
     Exerpted from orbits.py from gcworks
     """
-    def kep2xyz(self, epochs, mass):
+    def kep2xyz(self, epochs):
         """
         Generates (r, v, a) in AU, AU/yr, and AU/yr^2 respectively from keplarian parameters. 
         
@@ -32,12 +32,13 @@ class Orbit(object):
         orb.e = e_mag # float between 0 and 1
         orb.p = p # [years]
         orb.t0 = t0 # [years] This is initial
+        orb.mass = mass # [Msun]
 
-        (r, v, a) = orb.kep2xyz(array([refTime]), mass)
+        (r, v, a) = orb.kep2xyz(array([refTime]))
         
         """
 
-        GM = mass * c.G.to("cm3/(Msun s2)")
+        GM = self.mass * c.G.to("cm3/(Msun s2)")
 
         epoch_num = len(epochs)
 
@@ -45,7 +46,7 @@ class Orbit(object):
         meanMotion = 2.0 * math.pi / self.p
         
         # Semi-major axis in AU
-        axis = (self.p**2 * mass)**(1.0/3.0)
+        axis = (self.p**2 * self.mass)**(1.0/3.0)
 
         ecc_sqrt = np.sqrt(1.0 - self.e**2)        
         
@@ -402,7 +403,6 @@ def distance_to_center_of_mass(ss_pos, companions_pos):
     return ss_pos_temp, companions_pos_temp
                 
             
-
 def plot_projected_cluster(ss_pos, companions_pos):
     """
     Plots projected cluster with lines between companions and primary stars
@@ -416,7 +416,7 @@ def plot_projected_cluster(ss_pos, companions_pos):
         Companion table with positions added with add_mult_positions()
     """
     plt.figure(figsize=(10,10))
-    plt.plot(ss_pos['x'], ss_pos['y'],linestyle='none',marker='.' )
+    plt.plot(ss_pos['x'], ss_pos['y'],linestyle='none',marker='o' )
     plt.plot(companions_pos['x'], companions_pos['y'],linestyle='none',marker='.' )
     
     #makes lines between companion and primary star
